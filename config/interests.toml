@@ -1,0 +1,112 @@
+# =============================================================================
+# 兴趣画像：决定什么内容排到日报前面
+# -----------------------------------------------------------------------------
+# strong   命中即大幅加分（你的核心关注点）
+# medium   命中加中等分（相关但不够精准）
+# negative 命中扣分（噪声，比如招聘、广告、播客预告）
+# cn_strong / cn_medium  中文关键词，单独一组，见下方说明
+#
+# 英文关键词为整词匹配、大小写不敏感；中文关键词为子串匹配（中文无空格分词）。
+# 改完直接重跑 `python -m ain fetch`，不需要动代码。
+# =============================================================================
+
+[keywords]
+strong = [
+  # --- 厂商与模型实体名（最关键：漏掉这些会直接丢掉重大发布） ---
+  "openai", "anthropic", "claude", "gemini", "deepmind", "google brain",
+  "meta ai", "llama", "mistral", "deepseek", "qwen", "kimi", "glm",
+  "grok", "phi", "gemma", "command r", "stable diffusion", "sora",
+  "gpt", "chatgpt", "copilot", "midjourney", "perplexity", "cohere",
+  "hugging face", "nvidia", "groq", "together ai", "fireworks ai",
+  "cursor", "windsurf", "codex", "alphafold", "waymo", "tesla fsd",
+
+  # --- LLM 基础与训练 ---
+  "llm", "large language model", "foundation model", "transformer",
+  "pretraining", "post-training", "fine-tuning", "finetuning", "lora", "qlora",
+  "rlhf", "dpo", "distillation", "quantization", "quantized", "mixture of experts",
+  "moe", "scaling law", "context window", "long context", "tokenizer",
+  "reinforcement learning", "rlvr", "reward model", "synthetic data",
+  "distributed training", "checkpoint", "gradient",
+
+  # --- 推理与工程落地（工程背景重点） ---
+  "inference", "serving", "vllm", "sglang", "tensorrt", "onnx", "llama.cpp",
+  "kv cache", "paged attention", "flash attention", "speculative decoding",
+  "throughput", "latency", "batching", "cuda", "triton", "gpu", "tpu",
+  "memory bandwidth", "migration", "deployment", "cost per token",
+
+  # --- 应用架构 ---
+  "rag", "retrieval-augmented", "vector database", "embedding", "reranker",
+  "agent", "agentic", "multi-agent", "tool use", "function calling", "mcp",
+  "model context protocol", "workflow orchestration", "guardrails",
+  "prompt engineering", "structured output", "evals", "evaluation",
+  "benchmark", "observability", "tracing",
+
+  # --- 模型能力 ---
+  "reasoning model", "chain-of-thought", "test-time compute", "multimodal",
+  "vision-language", "vlm", "diffusion", "world model", "text-to-image",
+  "speech recognition", "code generation", "open weights", "open-source model",
+  "coding agent", "computer use",
+
+  # --- 世界模型 / 自监督表征（JEPA 系） ---
+  # 这类工作大量发在 cs.CV，标题常不含 "llm" 等通用词，不单列会整类漏掉
+  "jepa", "joint embedding predictive", "joint-embedding predictive",
+  "v-jepa", "i-jepa", "world action model", "latent world model",
+  "predictive architecture", "self-supervised representation",
+  "energy-based model", "representation learning",
+  "video world model", "model-based rl", "dynamics model",
+]
+
+# -----------------------------------------------------------------------------
+# 中文关键词。必须单独配：英文关键词匹配不到中文标题，
+# 否则中文源的内容会被相关性门槛整体过滤掉。
+# 中文没有空格分词，这里按子串匹配（不是整词匹配），所以别放太短的词。
+# -----------------------------------------------------------------------------
+cn_strong = [
+  "大模型", "大语言模型", "语言模型", "多模态", "具身智能", "世界模型",
+  "智能体", "推理", "微调", "蒸馏", "量化", "部署", "预训练",
+  "神经网络", "深度学习", "机器学习", "人工智能", "生成式", "对齐",
+  "评测", "基准", "算力", "显存", "推理加速", "开源模型",
+  "检索增强", "向量数据库", "提示词", "上下文", "幻觉", "扩散模型",
+  "自动驾驶", "机器人", "芯片", "国产", "端侧", "强化学习",
+]
+
+cn_medium = [
+  "模型", "算法", "数据集", "论文", "研究", "发布", "技术", "架构",
+  "性能", "效率", "优化", "应用", "产品", "融资", "创业",
+]
+
+medium = [
+  "artificial intelligence", "machine learning", "deep learning", "neural network",
+  "model", "dataset", "training", "open source", "release", "research", "paper",
+  "safety", "alignment", "interpretability", "hallucination", "robustness",
+  "privacy", "regulation", "policy", "api", "sdk", "framework", "toolkit",
+  "robotics", "autonomous", "productivity", "copilot", "startup", "funding",
+]
+
+negative = [
+  "webinar", "register now", "sponsored", "podcast episode", "listen now",
+  "we are hiring", "we're hiring", "job opening", "join our team", "giveaway",
+  "black friday", "discount", "crypto", "nft", "airdrop", "stock price",
+  "price prediction", "elon musk tweet", "drama",
+]
+
+# =============================================================================
+# 打分参数
+# -----------------------------------------------------------------------------
+[scoring]
+half_life_hours = 60.0   # 时效半衰期：60 小时后新鲜度权重减半（越大越不看重"新"）
+top_n = 30               # 日报最多显示多少条
+per_source_cap = 12      # 单个信源最多占多少条，防止一家刷屏
+min_score = 1.5          # 低于此分不进日报（keep_all 的官方博客不受此限）
+strong_weight = 3.0      # strong 关键词基础权重
+medium_weight = 1.5      # medium 关键词基础权重
+negative_weight = -4.0   # negative 关键词扣分
+max_age_days = 21.0      # 超过这么多天的内容再重罚一次
+
+# 分类加权：论文和版本发布对你更有价值就调高
+[category_boost]
+paper = 1.0
+release = 2.0
+vendor = 1.5
+community = 0.5
+cn = 1.5          # 中文源整体略微加权，避免被英文源挤满

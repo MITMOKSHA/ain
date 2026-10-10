@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知识专题 · ain</title>
+<style>
+  :root {
+    --bg:#0f1115; --panel:#171a21; --panel-2:#1e222b; --border:#2a2f3a;
+    --text:#e6e9ef; --muted:#8b93a7; --accent:#5b9dff; --accent-dim:#2d5c9e;
+    --warn:#ffb454; --ok:#4ade80; --purple:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  header{position:sticky;top:0;z-index:10;background:rgba(15,17,21,.93);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:14px 20px}
+  .top{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  h1{font-size:17px;margin:0;font-weight:600}
+  h1 span{color:var(--muted);font-weight:400;font-size:13px;margin-left:8px}
+  nav{display:flex;gap:4px;margin-left:auto}
+  nav a{padding:6px 13px;border-radius:7px;font-size:13.5px;color:var(--muted);border:1px solid transparent}
+  nav a:hover{background:var(--panel);color:var(--text);text-decoration:none}
+  nav a.on{background:var(--accent-dim);color:#fff}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;align-items:center}
+  .seg{display:inline-flex;padding:0;border:1px solid var(--border);border-radius:7px;overflow:hidden}
+  .seg button{border:0;background:transparent;color:var(--muted);cursor:pointer;
+    padding:7px 12px;font-size:13px;border-right:1px solid var(--border)}
+  .seg button:last-child{border-right:0}
+  .seg button.on{background:var(--accent-dim);color:#fff}
+  .spacer{flex:1}
+  .muted{color:var(--muted);font-size:12.5px}
+
+  main{max-width:1000px;margin:0 auto;padding:18px 20px 80px}
+  .banner{background:linear-gradient(135deg,rgba(91,157,255,.09),rgba(167,139,250,.07));
+    border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:13.5px;color:#c3cad8}
+  .banner b{color:var(--text)}
+  .banner code{background:var(--panel-2);padding:1px 6px;border-radius:4px;color:var(--accent);border:1px solid var(--border)}
+
+  .thread{background:var(--panel);border:1px solid var(--border);border-radius:11px;
+    padding:16px 18px;margin-bottom:13px}
+  .thread-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+  .thread h2{font-size:16.5px;margin:0;font-weight:600;color:var(--purple)}
+  .pill{padding:2px 9px;border-radius:999px;background:var(--panel-2);
+    border:1px solid var(--border);font-size:12px;color:var(--muted)}
+
+  .concepts{display:flex;gap:7px;flex-wrap:wrap;margin:9px 0 4px}
+  .cchip{font-size:12px;padding:3px 9px;border-radius:6px;background:rgba(167,139,250,.1);
+    border:1px solid rgba(167,139,250,.3);color:#c4b5fd}
+
+  .items{margin-top:11px;border-top:1px solid var(--border);padding-top:11px}
+  .row{padding:8px 0;border-bottom:1px solid rgba(42,47,58,.5)}
+  .row:last-child{border-bottom:0}
+  .row a{color:var(--text);font-size:14.5px;font-weight:500}
+  .row a:hover{color:var(--accent)}
+  .row .meta{display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:3px;align-items:center}
+  .sc{color:var(--ok);font-weight:600}
+  .lv{padding:1px 7px;border-radius:4px;font-size:11.5px;border:1px solid var(--border)}
+  .lv.intro{color:var(--ok);border-color:rgba(74,222,128,.4)}
+  .lv.intermediate{color:var(--warn);border-color:rgba(255,180,84,.4)}
+  .lv.advanced{color:#ff6b6b;border-color:rgba(255,107,107,.4)}
+  .sum{margin:4px 0 0;color:#b8c0d0;font-size:13px}
+  .card-detail{margin-top:6px;padding:7px 10px;background:var(--panel-2);
+    border-radius:6px;border-left:2px solid var(--purple);font-size:13px}
+  .card-detail b{color:#c4b5fd}
+  .empty{text-align:center;color:var(--muted);padding:50px 20px}
+  .empty code{background:var(--panel);padding:2px 7px;border-radius:4px;border:1px solid var(--border);color:var(--accent)}
+  .single-wrap{margin-top:8px}
+  .srow{display:inline-block;margin:3px 6px 3px 0;padding:4px 10px;border-radius:6px;
+    background:var(--panel);border:1px solid var(--border);font-size:12.5px}
+  .srow a{color:var(--muted)}
+  .srow:hover{border-color:var(--accent-dim)}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>知识专题<span>ain</span></h1>
+    <nav>
+      <a href="/">今日速览</a>
+      <a href="/knowledge" class="on">知识专题</a>
+    </nav>
+  </div>
+  <div class="controls">
+    <div class="seg" id="range">
+      <button data-days="7">7 天</button>
+      <button data-days="30" class="on">30 天</button>
+      <button data-days="90">90 天</button>
+      <button data-days="0">全部</button>
+    </div>
+    <span class="spacer"></span>
+    <span class="muted" id="mode"></span>
+  </div>
+</header>
+
+<main>
+  <div id="banner"></div>
+  <div id="list"></div>
+  <div id="singles"></div>
+</main>
+
+<script>
+const state = { days: "30" };
+const $ = (id) => document.getElementById(id);
+const LV = { intro: "入门", intermediate: "进阶", advanced: "深入" };
+
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+async function load(){
+  const p = new URLSearchParams({ days: state.days });
+  const d = await (await fetch("/api/topics?" + p)).json();
+  if (d.error) { $("list").innerHTML = `<div class="empty">出错：${esc(d.error)}</div>`; return; }
+
+  $("mode").textContent = d.mode === "llm"
+    ? `主题由 AI 归纳 · 覆盖 ${d.total_items} 条`
+    : `主题由关键词归并 · 覆盖 ${d.total_items} 条`;
+
+  // Without an LLM key there are no concept cards, so explain how to turn them on.
+  $("banner").innerHTML = d.mode === "llm" ? "" : `
+    <div class="banner">
+      <b>当前用关键词归并主题。</b>每个专题下是该主题的相关内容，能看清一个方向上的脉络。<br>
+      配置 LLM 后可升级为 <b>AI 归纳的概念卡片</b>（这个技术是什么、工程上怎么用、适合什么水平），
+      并让跨天主题自动收敛：
+      <code>export AIN_LLM_API_KEY=...</code> 然后 <code>python3 -m ain fetch --llm</code>
+    </div>`;
+
+  const list = $("list");
+  if (!d.threads.length) {
+    list.innerHTML = `<div class="empty">
+      还没有形成专题（每个专题至少需要 2 条内容）。<br><br>
+      试试扩大时间范围，或运行 <code>python3 -m ain fetch</code> 多抓几次。
+    </div>`;
+    $("singles").innerHTML = "";
+    return;
+  }
+
+  list.innerHTML = d.threads.map(t => {
+    const concepts = (t.concepts || []).length
+      ? `<div class="concepts">${t.concepts.map(c =>
+          `<span class="cchip" title="${esc(c.how||"")}">${esc(c.name)}</span>`).join("")}</div>`
+      : "";
+    const rows = t.items.map(it => `
+      <div class="row">
+        <a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>
+        <div class="meta">
+          <span class="sc">${Number(it.score).toFixed(1)}</span>
+          <span>${esc(it.source_name)}</span>
+          <span>${esc(it.published_date)}</span>
+          ${it.level ? `<span class="lv ${esc(it.level)}">${LV[it.level]||esc(it.level)}</span>` : ""}
+        </div>
+        ${it.why ? `<div class="card-detail">💡 ${esc(it.why)}</div>` : ""}
+        ${(it.concepts||[]).map(c => `
+          <div class="card-detail">
+            <b>${esc(c.name)}</b> — ${esc(c.what)}
+            ${c.how ? `<br><span class="muted">工程上：${esc(c.how)}</span>` : ""}
+          </div>`).join("")}
+      </div>`).join("");
+    return `
+      <div class="thread">
+        <div class="thread-head">
+          <h2>${esc(t.topic)}</h2>
+          <span class="pill">${t.count} 条</span>
+          <span class="pill">${t.sources} 个来源</span>
+        </div>
+        ${concepts}
+        <div class="items">${rows}</div>
+      </div>`;
+  }).join("");
+
+  // Topics seen only once: worth surfacing so nothing is hidden, but they are
+  // not threads yet.
+  const singles = d.single || [];
+  $("singles").innerHTML = singles.length ? `
+    <div class="thread">
+      <div class="thread-head"><h2 style="font-size:15px;color:var(--muted)">仅出现一次的主题</h2>
+      <span class="pill">${singles.length} 个</span></div>
+      <div class="single-wrap">
+        ${singles.map(t => `<span class="srow"><a href="${esc(t.items[0].url)}" target="_blank" rel="noopener">${esc(t.topic)}</a></span>`).join("")}
+      </div>
+    </div>` : "";
+}
+
+document.querySelectorAll("#range button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#range button").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); state.days = b.dataset.days; load();
+});
+
+load();
+</script>
+</body>
+</html>

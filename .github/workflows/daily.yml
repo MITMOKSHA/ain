@@ -1,0 +1,91 @@
+name: ain daily fetch
+
+# Why this exists: huggingface.co and reddit.com are unreachable from mainland
+# China (and equally unreachable from a mainland cloud server), but GitHub's
+# runners are outside that restriction. Running here also means the job does not
+# depend on your laptop being awake.
+#
+# Setup:
+#   1. Push this repo to GitHub.
+#   2. Optional: add repository secret AIN_LLM_API_KEY (and AIN_LLM_BASE_URL /
+#      AIN_LLM_MODEL) under Settings -> Secrets and variables -> Actions.
+#      Without it the job still runs, using rule-based summaries only (no cost).
+#   3. Enable the sources you want in config/sources.toml (hf-models, hf-blog,
+#      reddit-*) by setting enabled = true.
+
+on:
+  schedule:
+    # 22:30 UTC = 06:30 Asia/Shanghai (avoids the top-of-hour congestion)
+    - cron: "30 22 * * *"
+  workflow_dispatch: {}   # allow manual runs from the Actions tab
+
+# Needed to commit the refreshed archive back to the repository.
+permissions:
+  contents: write
+
+concurrency:
+  group: ain-daily
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # No pip install: the project is stdlib-only by design.
+      - name: Show environment
+        run: |
+          python3 --version
+          python3 -m ain doctor
+
+      - name: Fetch
+        env:
+          AIN_LLM_API_KEY: ${{ secrets.AIN_LLM_API_KEY }}
+          AIN_LLM_BASE_URL: ${{ secrets.AIN_LLM_BASE_URL }}
+          AIN_LLM_MODEL: ${{ secrets.AIN_LLM_MODEL }}
+        run: |
+          if [ -n "${AIN_LLM_API_KEY:-}" ]; then
+            echo "LLM key present -> enabling concept extraction"
+            python3 -m ain fetch -n 40 --llm
+          else
+            echo "No LLM key -> rule-based summaries only"
+            python3 -m ain fetch -n 40
+          fi
+
+      - name: Report token usage
+        if: always()
+        run: python3 -m ain usage || true
+
+      # The archive lives in data/, which is gitignored for local use. Here we
+      # force-add it so fetched content is preserved between runs; without this
+      # every run would start from an empty archive, re-downloading and
+      # re-billing the same articles.
+      - name: Commit archive
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Only add files that actually exist: a failed fetch may have produced
+          # none, and `git add` on a missing path fails the whole job.
+          added=0
+          for f in data/items.jsonl data/runs.jsonl data/usage.jsonl; do
+            if [ -f "$f" ]; then
+              git add -f "$f"
+              added=$((added + 1))
+            fi
+          done
+          echo "staged $added archive file(s)"
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: daily fetch $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+          fi

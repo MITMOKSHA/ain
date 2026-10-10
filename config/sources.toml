@@ -1,0 +1,198 @@
+# =============================================================================
+# 信源配置
+# -----------------------------------------------------------------------------
+# 每个信源一段 [[source]]。字段：
+#   id        唯一标识（查询和 CLI -s 过滤用得到，别随便改）
+#   type      适配器类型：rss | arxiv | hackernews | html_list | hf_models | hf_blog | reddit
+#   name      显示名
+#   url       地址（arxiv/hackernews 等用 API 的适配器可以留空）
+#   category  分类：paper | vendor | community | release | news | other
+#   weight    信源权重，1.0 为基准，越高越容易排进日报
+#   enabled   false 则跳过（网络不通的先禁用，别让它拖慢每次抓取）
+#
+# 你所在网络实测（2026-10）：arXiv / OpenAI / DeepMind / Google AI / HN 直连可用；
+# huggingface.co 与 reddit.com 需要代理，故默认 enabled = false。
+# =============================================================================
+
+# ------------------------------- 论文 / 研究 -------------------------------
+
+[[source]]
+id = "arxiv-cs-ai"
+type = "arxiv"
+name = "arXiv cs.AI"
+category = "paper"
+weight = 1.3
+# 想收窄就减少 categories，想加宽就加 cs.CV / cs.SE / stat.ML 等
+# cs.CV 必须留：JEPA / 世界模型 / V-JEPA 这类工作大量发在 cs.CV，只在 cs.AI 会漏掉
+categories = ["cs.AI", "cs.LG", "cs.CL", "cs.CV"]
+limit = 80
+sort_by = "submittedDate"
+timeout = 45
+
+# 定向追踪：只抓你关心的方向。按需打开并改关键词。
+# [[source]]
+# id = "arxiv-agents"
+# type = "arxiv"
+# name = "arXiv · Agent 方向"
+# category = "paper"
+# weight = 1.6
+# query = 'abs:"agent" OR abs:"tool use" OR abs:"function calling"'
+# limit = 40
+# timeout = 45
+
+# --------------------------- 大厂发布 / 工程博客 ---------------------------
+
+[[source]]
+id = "openai-news"
+keep_all = true   # 官方博客发布少且必然相关，跳过关键词门槛
+type = "rss"
+name = "OpenAI News"
+url = "https://openai.com/news/rss.xml"
+category = "vendor"
+weight = 1.5
+limit = 25
+
+[[source]]
+id = "deepmind-blog"
+keep_all = true   # 官方博客发布少且必然相关，跳过关键词门槛
+type = "rss"
+name = "Google DeepMind"
+url = "https://deepmind.google/blog/rss.xml"
+category = "vendor"
+weight = 1.4
+limit = 25
+
+[[source]]
+id = "google-ai-blog"
+keep_all = true   # 官方博客发布少且必然相关，跳过关键词门槛
+type = "rss"
+name = "Google AI Blog"
+url = "https://blog.google/technology/ai/rss/"
+category = "vendor"
+weight = 1.2
+limit = 25
+
+# Anthropic 没有 RSS，用 HTML 列表适配器解析 /news 页面。
+[[source]]
+id = "anthropic-news"
+keep_all = true   # 官方博客发布少且必然相关，跳过关键词门槛
+type = "html_list"
+name = "Anthropic News"
+url = "https://www.anthropic.com/news"
+category = "vendor"
+weight = 1.5
+limit = 15
+# 捕获 href / 标题正文 / 前置日期三部分；页面改版时只需要改这一行
+# 注意用 __title 锁定标题 span，否则会匹配到同级的分类/日期 span
+link_pattern = '<a[^>]+href="(?P<href>/news/[a-z0-9\-]+)"[^>]*>.*?<time[^>]*>(?P<date>[^<]+)</time>.*?<span[^>]*__title[^>]*>(?P<title>[^<]{10,200})</span>'
+exclude = ["/news/category", "/news/author"]
+
+# ------------------------------- 开源 / 模型 -------------------------------
+# huggingface.co 当前网络不可达，配好代理后把 enabled 改成 true。
+
+[[source]]
+id = "hf-models"
+type = "hf_models"
+name = "Hugging Face 新模型"
+category = "release"
+weight = 1.2
+enabled = false
+sort = "createdAt"
+limit = 40
+min_likes = 5
+
+[[source]]
+id = "hf-blog"
+type = "rss"
+name = "Hugging Face Blog"
+url = "https://huggingface.co/blog/feed.xml"
+category = "vendor"
+weight = 1.2
+enabled = false
+limit = 20
+
+# -------------------------------- 社区热帖 --------------------------------
+
+[[source]]
+id = "hn-ai"
+type = "hackernews"
+name = "Hacker News (AI)"
+category = "community"
+weight = 1.0
+feed = "topstories"
+scan = 90          # 拉多少个候选故事做筛选（越大越慢）
+limit = 20         # 最多保留多少条
+min_points = 50    # 低于这个分数不要
+budget_seconds = 45  # 时间预算：HN 限速严重，超时就用已抓到的部分，不阻塞整体
+workers = 12
+
+# reddit.com 当前网络不可达（需要代理或 OAuth token）。
+[[source]]
+id = "reddit-ml"
+type = "reddit"
+name = "r/MachineLearning"
+category = "community"
+weight = 1.1
+enabled = false
+subreddit = "MachineLearning"
+listing = "top"
+time = "day"
+limit = 25
+min_score = 30
+
+[[source]]
+id = "reddit-localllama"
+type = "reddit"
+name = "r/LocalLLaMA"
+category = "community"
+weight = 1.1
+enabled = false
+subreddit = "LocalLLaMA"
+listing = "top"
+time = "day"
+limit = 25
+min_score = 30
+
+# ------------------------------ 中文信息源 ------------------------------
+# 实测（2026-10）以下中文源均可直连。机器之心 RSS 已失效（返回 HTML 页面），
+# 36氪 feed 是非法 XML，两者都没配——宁缺毋滥，避免每次抓取都报错。
+# 中文内容要能进日报，必须同时在 config/interests.toml 的 cn_strong 里配中文关键词，
+# 否则英文关键词匹配不到中文标题，会被相关性门槛全部过滤掉。
+
+[[source]]
+id = "qbitai"
+type = "rss"
+name = "量子位"
+url = "https://www.qbitai.com/feed"
+category = "cn"
+weight = 1.3
+keep_all = true    # 中文源条目少且主题集中，跳过关键词门槛（但仍靠中文词加权重排序）
+limit = 20
+
+[[source]]
+id = "aiera"
+type = "rss"
+name = "新智元"
+url = "https://www.aiera.com.cn/feed"
+category = "cn"
+weight = 1.2
+keep_all = true
+limit = 20
+
+[[source]]
+id = "infoq-cn"
+type = "rss"
+name = "InfoQ 中文"
+url = "https://www.infoq.cn/feed"
+category = "cn"
+weight = 1.1
+limit = 25
+
+[[source]]
+id = "solidot"
+type = "rss"
+name = "Solidot"
+url = "https://www.solidot.org/index.rss"
+category = "cn"
+weight = 1.0
+limit = 25

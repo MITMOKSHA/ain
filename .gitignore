@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[oc]
+*.egg-info/
+build/
+dist/
+
+# macOS
+.DS_Store
+._*
+
+# 密钥：绝对不要提交。.env 里放 API key，.env.example 是模板（可以提交）。
+.env
+.env.*
+!.env.example
+
+# 获取产物：由定时任务生成，不需要进版本库。
+# 如果你希望把归档纳入 git 做长期留存，删掉 data/ 这一行即可。
+# 注意 .github/workflows/daily.yml 会用 `git add -f` 强制提交归档。
+data/
+reports/
+logs/
+
+# 本地缓存/虚拟环境
+.venv/
+.uv-cache/

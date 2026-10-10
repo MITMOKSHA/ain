@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 前沿 · ain</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --border: #2a2f3a;
+    --text: #e6e9ef;
+    --muted: #8b93a7;
+    --accent: #5b9dff;
+    --accent-dim: #2d5c9e;
+    --warn: #ffb454;
+    --err: #ff6b6b;
+    --ok: #4ade80;
+    --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(15,17,21,.92); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border); padding: 14px 20px;
+  }
+  .top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: .3px; }
+  h1 span { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 8px; }
+
+  .search { flex: 1; min-width: 220px; position: relative; }
+  .search input {
+    width: 100%; padding: 9px 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--panel);
+    color: var(--text); font-size: 14px; outline: none;
+  }
+  .search input:focus { border-color: var(--accent-dim); }
+
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+  select, .seg {
+    padding: 7px 10px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--text); font-size: 13px; outline: none;
+  }
+  .seg { display: inline-flex; padding: 0; overflow: hidden; }
+  .seg button {
+    border: 0; background: transparent; color: var(--muted); cursor: pointer;
+    padding: 7px 12px; font-size: 13px; border-right: 1px solid var(--border);
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: var(--accent-dim); color: #fff; }
+  .chip {
+    padding: 5px 10px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--panel); color: var(--muted); font-size: 12.5px;
+    cursor: pointer; user-select: none;
+  }
+  .chip.on { background: var(--accent-dim); border-color: var(--accent-dim); color: #fff; }
+  .btn {
+    padding: 7px 14px; border-radius: 7px; border: 1px solid var(--accent-dim);
+    background: var(--accent-dim); color: #fff; font-size: 13px; cursor: pointer;
+  }
+  .btn:hover { background: var(--accent); border-color: var(--accent); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .switch {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    padding: 6px 11px; border-radius: 7px; border: 1px solid var(--border);
+    background: var(--panel); font-size: 13px; color: var(--muted);
+    user-select: none;
+  }
+  .switch:hover { border-color: var(--accent-dim); }
+  .switch input { accent-color: var(--accent); cursor: pointer; margin: 0; }
+  .switch:has(input:checked) { color: var(--purple); border-color: rgba(167,139,250,.45); }
+  .spacer { flex: 1; }
+  .muted { color: var(--muted); font-size: 12.5px; }
+
+  main { max-width: 980px; margin: 0 auto; padding: 18px 20px 80px; }
+  .statline { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 15px 17px; margin-bottom: 11px;
+    transition: border-color .12s;
+  }
+  .card:hover { border-color: #38404f; }
+  .card h2 { font-size: 16px; margin: 0 0 7px; font-weight: 600; line-height: 1.45; }
+  .card h2 a { color: var(--text); }
+  .card h2 a:hover { color: var(--accent); }
+  .meta { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: var(--muted); }
+  .badge {
+    padding: 2px 8px; border-radius: 5px; background: var(--panel-2);
+    border: 1px solid var(--border); font-size: 12px;
+  }
+  .badge.cat { color: var(--accent); border-color: var(--accent-dim); }
+  .badge.score { color: var(--ok); }
+  .badge.hot { color: var(--warn); }
+  .summary { margin: 9px 0 0; color: #c3cad8; font-size: 14px; }
+  .why {
+    margin: 9px 0 0; padding: 7px 11px; border-left: 2px solid var(--warn);
+    background: rgba(255,180,84,.06); border-radius: 0 6px 6px 0; font-size: 13.5px;
+  }
+  .kws { margin-top: 9px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .kw {
+    font-size: 11.5px; color: var(--muted); background: var(--panel-2);
+    padding: 2px 7px; border-radius: 4px; border: 1px solid var(--border);
+  }
+  .empty { text-align: center; color: var(--muted); padding: 60px 20px; }
+  .empty code {
+    background: var(--panel); padding: 2px 7px; border-radius: 4px;
+    border: 1px solid var(--border); color: var(--accent);
+  }
+  footer { max-width: 980px; margin: 0 auto; padding: 0 20px 40px; color: var(--muted); font-size: 12.5px; }
+  .health { display: flex; gap: 10px; flex-wrap: wrap; }
+  .health span { padding: 3px 9px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+  .dot.on { background: var(--ok); }
+  .dot.off { background: var(--muted); }
+  .pagenav { display: flex; gap: 4px; }
+  .pagenav a {
+    padding: 6px 12px; border-radius: 7px; font-size: 13.5px;
+    color: var(--muted); border: 1px solid transparent;
+  }
+  .pagenav a:hover { background: var(--panel); color: var(--text); text-decoration: none; }
+  .pagenav a.on { background: var(--accent-dim); color: #fff; }
+  .usage-panel {
+    margin-top: 12px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 9px; overflow: hidden;
+  }
+  .usage-head {
+    display: flex; gap: 16px; flex-wrap: wrap; align-items: baseline;
+    padding: 11px 14px; font-size: 12.5px; color: var(--muted);
+  }
+  .usage-head b { color: var(--text); font-weight: 600; }
+  .usage-head .cost { color: var(--warn); font-size: 14px; font-weight: 600; }
+  .usage-toggle {
+    margin-left: auto; background: transparent; border: 1px solid var(--border);
+    color: var(--accent); border-radius: 6px; padding: 3px 10px;
+    font-size: 12px; cursor: pointer;
+  }
+  .usage-toggle:hover { border-color: var(--accent-dim); }
+  .usage-body {
+    display: none; border-top: 1px solid var(--border);
+    padding: 11px 14px; font-size: 12.5px;
+  }
+  .usage-body.open { display: block; }
+  .usage-body table { width: 100%; border-collapse: collapse; }
+  .usage-body th, .usage-body td {
+    text-align: right; padding: 5px 8px; color: var(--muted);
+    border-bottom: 1px solid rgba(42,47,58,.6);
+  }
+  .usage-body th { color: var(--text); font-weight: 600; font-size: 12px; }
+  .usage-body th:first-child, .usage-body td:first-child {
+    text-align: left; color: var(--text);
+  }
+  .usage-body tr:last-child td { border-bottom: 0; }
+  .usage-note { color: var(--muted); font-size: 11.5px; margin: 9px 0 0; line-height: 1.6; }
+  .learn { margin-top: 10px; padding: 10px 12px; background: var(--panel-2);
+           border-radius: 8px; border-left: 2px solid var(--purple); }
+  .learn-h { font-size: 12px; color: var(--purple); font-weight: 600;
+             letter-spacing: .5px; margin-bottom: 7px; }
+  .ccard { font-size: 13.5px; color: #c3cad8; margin-bottom: 7px; }
+  .ccard:last-child { margin-bottom: 0; }
+  .ccard b { color: #c4b5fd; }
+  .chow { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .topics { margin-top: 9px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .topic { font-size: 11.5px; padding: 2px 8px; border-radius: 999px;
+           background: rgba(167,139,250,.1); border: 1px solid rgba(167,139,250,.3);
+           color: #c4b5fd; }
+  .body-wrap { margin-top: 11px; }
+  .body-toggle {
+    padding: 6px 12px; border-radius: 7px; cursor: pointer; font-size: 12.5px;
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--accent);
+  }
+  .body-toggle:hover { border-color: var(--accent-dim); background: #232833; }
+  .body-box {
+    margin-top: 10px; padding: 13px 15px; background: var(--panel-2);
+    border-radius: 8px; border: 1px solid var(--border);
+    font-size: 14px; line-height: 1.75; color: #c3cad8;
+    max-height: 460px; overflow-y: auto;
+  }
+  .body-box p { margin: 0 0 10px; }
+  .body-box p:last-child { margin-bottom: 0; }
+  .body-src { font-size: 12px; color: var(--muted); border-top: 1px solid var(--border);
+              padding-top: 9px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>AI 前沿<span>ain</span></h1>
+    <nav class="pagenav">
+      <a href="/" class="on">今日速览</a>
+      <a href="/knowledge">知识专题</a>
+    </nav>
+    <div class="search"><input id="q" type="search" placeholder="搜索标题 / 摘要 / 关键词…（空格分隔为 AND）" autocomplete="off"></div>
+  </div>
+  <div class="controls">
+    <div class="seg" id="viewmode">
+      <button data-view="digest">今日精选</button>
+      <button data-view="all" class="on">全部内容</button>
+    </div>
+    <div class="seg" id="range">
+      <button data-days="1">今天</button>
+      <button data-days="3">3 天</button>
+      <button data-days="7" class="on">7 天</button>
+      <button data-days="30">30 天</button>
+      <button data-days="0">全部</button>
+    </div>
+    <select id="category"><option value="">全部分类</option></select>
+    <select id="source"><option value="">全部信源</option></select>
+    <div class="seg" id="sort">
+      <button data-sort="score" class="on">按相关度</button>
+      <button data-sort="newest">按时间</button>
+    </div>
+    <div class="spacer"></div>
+    <label class="switch" id="llmSwitch" title="开启后会用 LLM 生成中文摘要与概念卡片，产生少量费用">
+      <input type="checkbox" id="llmToggle">
+      <span>AI 摘要</span>
+    </label>
+    <button id="fetchBtn" class="btn">获取最新</button>
+    <span class="muted" id="count"></span>
+  </div>
+  <div id="fetchMsg" class="muted" style="margin-top:8px; display:none"></div>
+</header>
+
+<main>
+  <div class="statline" id="statline"></div>
+  <div id="list"></div>
+</main>
+
+<footer>
+  <div class="health" id="health"></div>
+  <div class="usage-panel" id="usage"></div>
+  <p class="muted" style="margin-top:10px">
+    数据来自本地归档 <code>data/items.jsonl</code>。命令行获取：<code>python -m ain fetch --llm</code>。
+  </p>
+</footer>
+
+<script>
+const DEFAULT_VIEW = "all";
+const state = { q: "", days: "7", category: "", source: "", sort: "score", limit: 300,
+                view: DEFAULT_VIEW, run: "" };
+const CAT_LABEL = {
+  paper: "论文", vendor: "大厂", community: "社区",
+  release: "开源/模型", news: "动态", cn: "中文", other: "其他"
+};
+const $ = (id) => document.getElementById(id);
+
+async function load() {
+  const p = new URLSearchParams();
+  p.set("days", state.days);
+
+  // "今日精选" reads the curated set recorded by the last run; "全部内容"
+  // queries the whole archive. Only the latter supports search/filter, because
+  // the curated set is fixed at fetch time.
+  const useDigest = state.view === "digest";
+  if (!useDigest) {
+    if (state.q) p.set("q", state.q);
+    if (state.category) p.set("category", state.category);
+    if (state.source) p.set("source", state.source);
+    p.set("sort", state.sort);
+    p.set("limit", state.limit);
+  } else if (state.run) {
+    p.set("run", state.run);
+  }
+
+  const url = (useDigest ? "/api/digest?" : "/api/items?") + p.toString();
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.error) {
+    $("list").innerHTML = `<div class="empty">出错了：${esc(data.error)}</div>`;
+    return;
+  }
+  render(data, useDigest);
+  if (!useDigest) fillFacets(data.facets);
+}
+
+function fillFacets(f) {
+  const cat = $("category"), src = $("source");
+  if (cat.options.length <= 1) {
+    Object.entries(f.category || {})
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([k, n]) => cat.add(new Option(`${CAT_LABEL[k] || k} (${n})`, k)));
+  }
+  if (src.options.length <= 1) {
+    (f.sources || []).forEach(s => {
+      const n = (f.source || {})[s.id] || 0;
+      if (n > 0 || s.enabled) src.add(new Option(`${s.name} (${n})`, s.id));
+    });
+  }
+
+  const h = $("health");
+  h.innerHTML = "";
+  (f.sources || []).forEach(s => {
+    const el = document.createElement("span");
+    el.innerHTML = `<i class="dot ${s.enabled ? "on" : "off"}"></i>${esc(s.name)}`;
+    if (!s.enabled) el.title = "已在 config/sources.toml 中禁用";
+    h.appendChild(el);
+  });
+}
+
+function render(data, digest) {
+  // `returned` is only meaningful for the archive view; the digest API returns
+  // the whole curated set and has no notion of "shown vs matched". Guard against
+  // missing fields instead of interpolating undefined into the UI.
+  const shown = Number.isFinite(data.returned) ? data.returned : null;
+  const total = Number.isFinite(data.total) ? data.total : 0;
+  if (digest || shown === null) {
+    $("count").textContent = total ? `${total} 条` : "";
+  } else {
+    $("count").textContent = shown === total
+      ? `${total} 条`
+      : `显示 ${shown} / ${total} 条`;
+  }
+
+  if (digest) {
+    const ts = data.ts ? new Date(data.ts).toLocaleString("zh-CN") : "—";
+    const st = data.stats || {};
+    const failed = Object.keys(st.failed || {}).length;
+    $("statline").textContent =
+      `本次精选 ${total} 条 · 获取于 ${ts}` +
+      (failed ? ` · ${failed} 个信源失败` : "") +
+      (data.missing ? ` · ${data.missing} 条已不在归档` : "") +
+      (data.source === "live-ranking" ? "（按实时排序兜底，尚未有精选记录）" : "");
+  } else {
+    $("statline").textContent =
+      `归档共 ${data.archive_size} 条 · 当前条件命中 ${total} 条`;
+  }
+
+  if (!data.items.length) {
+    $("list").innerHTML = digest
+      ? `<div class="empty">
+           还没有精选记录。<br><br>
+           点右上角「获取最新」，或运行 <code>python -m ain fetch</code>。<br>
+           想看全部历史内容就切到「全部内容」。
+         </div>`
+      : `<div class="empty">
+           没有匹配的内容。<br><br>
+           试试放宽时间范围，或者点「获取最新」拉一批新的。
+         </div>`;
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  for (const it of data.items) {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const badges = [];
+    badges.push(`<span class="badge cat">${esc(CAT_LABEL[it.category] || it.category)}</span>`);
+    badges.push(`<span class="badge score">${it.score.toFixed(2)}</span>`);
+    if (it.points) badges.push(`<span class="badge hot">${it.points} points</span>`);
+    if (it.stars) badges.push(`<span class="badge hot">${it.stars} likes</span>`);
+    if (it.comments) badges.push(`<span class="badge">${it.comments} 评论</span>`);
+
+    const when = it.published_display
+      ? `${it.published_display} · ${ageText(it.age_hours)}`
+      : "时间未知";
+
+    card.innerHTML = `
+      <h2><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a></h2>
+      <div class="meta">
+        <span class="badge">${esc(it.source_name)}</span>
+        <span>${esc(when)}</span>
+        ${badges.join("")}
+      </div>
+      ${it.summary && it.summary !== it.title ? `<p class="summary">${esc(it.summary)}</p>` : ""}
+      ${it.why ? `<div class="why">💡 ${esc(it.why)}</div>` : ""}
+      ${(it.concepts || []).length ? `<div class="learn">
+        <div class="learn-h">可以学到</div>
+        ${it.concepts.map(c => `<div class="ccard">
+          <b>${esc(c.name)}</b> — ${esc(c.what)}
+          ${c.how ? `<div class="chow">工程上：${esc(c.how)}</div>` : ""}
+        </div>`).join("")}
+      </div>` : ""}
+      ${it.topics && it.topics.length
+        ? `<div class="topics">${it.topics.map(t => `<span class="topic">${esc(t)}</span>`).join("")}</div>`
+        : ""}
+      ${it.matched_keywords.length
+        ? `<div class="kws">${it.matched_keywords.map(k => `<span class="kw">${esc(k)}</span>`).join("")}</div>`
+        : ""}
+      ${it.has_content
+        ? `<div class="body-wrap">
+             <button class="body-toggle" data-id="${esc(it.id)}">展开全文（${it.content_chars} 字）</button>
+             <div class="body-box" data-body="${esc(it.id)}" hidden></div>
+           </div>`
+        : ""}
+    `;
+    frag.appendChild(card);
+  }
+  $("list").innerHTML = "";
+  $("list").appendChild(frag);
+
+  // Bodies are fetched on demand: they average ~5KB each, so inlining them
+  // would push a 200-item page past 1MB.
+  $("list").querySelectorAll(".body-toggle").forEach(btn => {
+    btn.onclick = () => toggleBody(btn);
+  });
+}
+
+async function toggleBody(btn) {
+  const id = btn.dataset.id;
+  const box = $("list").querySelector(`[data-body="${CSS.escape(id)}"]`);
+  if (!box) return;
+
+  if (btn.dataset.open === "1") {
+    box.hidden = true;
+    btn.dataset.open = "0";
+    btn.textContent = btn.dataset.label;
+    return;
+  }
+  if (!btn.dataset.label) btn.dataset.label = btn.textContent;
+  btn.dataset.open = "1";
+  btn.textContent = "收起全文";
+  box.hidden = false;
+
+  if (box.dataset.loaded === "1") return;
+  box.textContent = "加载中…";
+  try {
+    const d = await (await fetch("/api/content?id=" + encodeURIComponent(id))).json();
+    if (d.error) { box.textContent = "读取失败：" + d.error; return; }
+    if (!d.content) { box.textContent = "这条没有抓到正文。"; return; }
+    box.dataset.loaded = "1";
+    box.innerHTML = d.content.split(/\n{2,}/).map(p =>
+      `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("") +
+      `<p class="body-src">来源提取方式：${esc(d.strategy || "未知")} ·
+        <a href="${esc(d.url)}" target="_blank" rel="noopener">打开原文</a></p>`;
+  } catch (e) {
+    box.textContent = "加载失败：" + e;
+  }
+}
+
+function ageText(h) {
+  if (h === null || h === undefined) return "";
+  if (h < 1) return "刚刚";
+  if (h < 24) return `${Math.round(h)} 小时前`;
+  return `${Math.round(h / 24)} 天前`;
+}
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
+}
+
+// ---- wiring ----
+let timer = null;
+$("q").addEventListener("input", (e) => {
+  state.q = e.target.value.trim();
+  clearTimeout(timer);
+  timer = setTimeout(load, 250);       // debounce so typing stays smooth
+});
+document.querySelectorAll("#range button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#range button").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); state.days = b.dataset.days; load();
+});
+document.querySelectorAll("#sort button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#sort button").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); state.sort = b.dataset.sort; load();
+});
+$("category").onchange = (e) => { state.category = e.target.value; load(); };
+$("source").onchange = (e) => { state.source = e.target.value; load(); };
+
+// Switch between the curated digest and the full archive. Search/filter/sort
+// only apply to the archive view, so they are disabled in digest mode.
+// Applies everything that depends on the active view. Extracted from the click
+// handler so the initial render is consistent with the default view instead of
+// relying on hardcoded "on" classes.
+function applyView() {
+  const digest = state.view === "digest";
+  document.querySelectorAll("#viewmode button").forEach(b => {
+    b.classList.toggle("on", b.dataset.view === state.view);
+  });
+  document.querySelectorAll("#sort button").forEach(x => x.disabled = digest);
+  $("sort").style.opacity = digest ? ".4" : "1";
+  // The curated set is fixed at fetch time, so date/category/source filters and
+  // search do not apply to it.
+  $("range").style.display = digest ? "none" : "";
+  $("category").style.display = digest ? "none" : "";
+  $("source").style.display = digest ? "none" : "";
+  $("q").disabled = digest;
+  $("q").placeholder = digest
+    ? "「今日精选」不支持搜索——切到「全部内容」再搜"
+    : "搜索标题 / 摘要 / 关键词…（空格分隔为 AND）";
+}
+
+document.querySelectorAll("#viewmode button").forEach(b => b.onclick = () => {
+  state.view = b.dataset.view;
+  applyView();
+  load();
+});
+
+// ---- "fetch now" button ----
+let polling = null;
+function setFetchUI(running, msg) {
+  const btn = $("fetchBtn"), box = $("fetchMsg");
+  btn.disabled = running;
+  btn.textContent = running ? "获取中…" : "获取最新";
+  if (msg) { box.style.display = "block"; box.textContent = msg; }
+}
+async function pollFetch() {
+  const s = await (await fetch("/api/fetch")).json();
+  if (s.running) {
+    setFetchUI(true, "正在获取各信源的最新内容，通常 1–3 分钟…（Hacker News 限速时会更久）");
+    return;
+  }
+  clearInterval(polling); polling = null;
+  setFetchUI(false, "");
+  if (s.error) {
+    $("fetchMsg").style.display = "block";
+    $("fetchMsg").textContent = "获取失败：" + s.error;
+  } else if (s.result) {
+    const r = s.result;
+    const failed = Object.keys(r.failed || {});
+    const u = r.llm_usage || {};
+    const cost = money(u) * RATE;
+    $("fetchMsg").style.display = "block";
+    $("fetchMsg").textContent =
+      `获取完成：${r.ok_sources.length} 个信源成功，入选 ${r.selected} 条` +
+      (failed.length ? `；失败 ${failed.length} 个（${failed.join(", ")}）` : "") +
+      (u.calls
+        ? `；AI 处理 ${u.calls} 次调用，输入 ${n(u.prompt_tokens)} / 输出 ${n(u.completion_tokens)} tokens ≈ ¥${cost.toFixed(3)}`
+          + (r.llm_skipped ? `（复用归档跳过 ${r.llm_skipped} 条）` : "")
+        : "（未启用 AI 摘要）");
+    refreshStats();
+  }
+  load();
+}
+$("fetchBtn").onclick = async () => {
+  const useLlm = $("llmToggle").checked;
+  const res = await fetch("/api/fetch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ llm: useLlm })
+  });
+  const d = await res.json();
+  if (!d.ok) { setFetchUI(false, d.message); return; }
+  setFetchUI(true, useLlm
+    ? "正在获取最新内容并调用 AI 生成摘要与概念卡片，通常 2–5 分钟…"
+    : "正在获取各信源的最新内容，通常 1–3 分钟…（Hacker News 限速时会更久）");
+  if (!polling) polling = setInterval(pollFetch, 3000);
+};
+
+// Remember the choice, since turning it on is a deliberate (billable) decision.
+const LLM_PREF = "ain.useLlm";
+try {
+  $("llmToggle").checked = localStorage.getItem(LLM_PREF) === "1";
+} catch (e) {}
+$("llmToggle").onchange = () => {
+  try { localStorage.setItem(LLM_PREF, $("llmToggle").checked ? "1" : "0"); } catch (e) {}
+};
+
+// Live-refresh: re-read the archive every 60s so a fetch shows up automatically.
+// Also renders the LLM token ledger, since the provider has no usage API.
+// Prices match DeepSeek off-peak; adjust here if you change provider.
+const PRICE_IN = 0.15, PRICE_OUT = 0.6, RATE = 7.1;
+const OP_LABEL = { fetch: "获取最新", enrich: "补齐历史" };
+
+function money(row) {
+  return (row.prompt_tokens || 0) / 1e6 * PRICE_IN
+       + (row.completion_tokens || 0) / 1e6 * PRICE_OUT;
+}
+function n(v) { return (v || 0).toLocaleString(); }
+
+function usageTable(title, bucket, labelFn) {
+  const rows = Object.entries(bucket || {});
+  if (!rows.length) return "";
+  return `<table>
+    <tr><th>${esc(title)}</th><th>调用</th><th>输入</th><th>输出</th><th>估算</th></tr>
+    ${rows.map(([k, r]) => `<tr>
+      <td>${esc(labelFn ? labelFn(k) : k)}</td>
+      <td>${n(r.calls)}</td>
+      <td>${n(r.prompt_tokens)}</td>
+      <td>${n(r.completion_tokens)}</td>
+      <td>¥${(money(r) * RATE).toFixed(3)}</td>
+    </tr>`).join("")}
+  </table>`;
+}
+
+function renderUsage(u) {
+  const box = $("usage");
+  if (!u || !u.entries) { box.style.display = "none"; return; }
+  const t = u.totals || {};
+  const cost = money(t) * RATE;
+  const last = (u.last || "").slice(0, 16).replace("T", " ");
+
+  // Preserve open/closed state across the 60s refresh.
+  const wasOpen = box.querySelector(".usage-body")?.classList.contains("open");
+
+  box.style.display = "block";
+  box.innerHTML = `
+    <div class="usage-head">
+      <span>LLM 消耗累计</span>
+      <span><b>${n(t.calls)}</b> 次调用</span>
+      <span>输入 <b>${n(t.prompt_tokens)}</b></span>
+      <span>输出 <b>${n(t.completion_tokens)}</b></span>
+      <span class="cost">≈ ¥${cost.toFixed(2)}</span>
+      ${last ? `<span>最近 ${esc(last)}</span>` : ""}
+      <button class="usage-toggle" id="usageToggle">明细</button>
+    </div>
+    <div class="usage-body${wasOpen ? " open" : ""}">
+      ${usageTable("操作", u.by_op, k => OP_LABEL[k] || k)}
+      ${usageTable("按天", u.by_day)}
+      ${usageTable("模型", u.by_model)}
+      <p class="usage-note">
+        按输入 $${PRICE_IN}/M、输出 $${PRICE_OUT}/M（DeepSeek 低谷价）估算，汇率 ${RATE}。
+        <b>这只是估算，不是账单</b>——换供应商或高峰时段价格不同，可在 <code>index.html</code> 顶部调整。
+        <br>本网关无余额接口（/balance、/usage 均 404），故为本地记账：<code>data/usage.jsonl</code>。
+        在别处使用同一 key 的消耗不计入。
+      </p>
+    </div>`;
+
+  $("usageToggle").onclick = () => {
+    const body = box.querySelector(".usage-body");
+    body.classList.toggle("open");
+    $("usageToggle").textContent = body.classList.contains("open") ? "收起" : "明细";
+  };
+  if (wasOpen) $("usageToggle").textContent = "收起";
+}
+
+async function refreshStats() {
+  try {
+    const s = await (await fetch("/api/stats")).json();
+    renderUsage(s.usage);
+    if (s.archive_size !== lastSize) { lastSize = s.archive_size; load(); }
+  } catch (e) {}
+}
+
+setInterval(refreshStats, 60000);
+let lastSize = -1;
+
+applyView();   // sync controls with the default view before the first fetch
+load();
+refreshStats();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+[project]
+name = "ain"
+version = "0.1.0"
+description = "个人 AI 前沿信息 agent：抓取、打分、摘要、归档，带本地网页界面"
+readme = "README.md"
+requires-python = ">=3.11"
+# 刻意保持零依赖：全部基于标准库（urllib / xml.etree / tomllib / http.server）。
+# 这样不需要 pip install，也不受网络与镜像影响。
+dependencies = []
+
+[project.scripts]
+ain = "ain.cli:main"
