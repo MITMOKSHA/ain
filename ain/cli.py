@@ -64,10 +64,15 @@ def cmd_fetch(args) -> int:
     ok = len(result.ok_sources)
     total_sources = len(result.source_results)
     print(
-        f"→ 信源 {ok}/{total_sources} 成功，抓到 {len(result.items)} 条(去重后归档), "
+        f"→ 信源 {ok}/{total_sources} 成功，抓到 {len(result.items)} 条(精选), "
         f"新增 {result.added}, 更新 {result.updated}",
         file=sys.stderr,
     )
+    if result.filtered_out_of_domain:
+        print(
+            f"→ Agent 门槛过滤掉 {result.filtered_out_of_domain} 条非 Agent 内容",
+            file=sys.stderr,
+        )
     if result.content_stats:
         cs = result.content_stats
         print(
@@ -309,6 +314,44 @@ def cmd_enrich(args) -> int:
     return 0
 
 
+def cmd_prune(args) -> int:
+    """Remove archive rows that no longer pass the domain gate.
+
+    The gate governs what new runs write, but an archive filled before it existed
+    (or under a wider config) still feeds search and the topic threads. This is
+    the one-off cleanup for that, and it re-runs safely.
+    """
+    from .scorer import Scorer
+
+    config = _load(args)
+    store = Store(config.data_dir)
+    scorer = Scorer(config.interests)
+    exempt = {s.id for s in config.sources if s.opt("domain_exempt", False)}
+
+    def keep(item: Item) -> bool:
+        return item.source_id in exempt or scorer.in_domain(item)
+
+    items = list(store.load().values())
+    doomed = [i for i in items if not keep(i)]
+
+    if not doomed:
+        print(f"归档 {len(items)} 条，全部在 Agent 范围内，无需清理。", file=sys.stderr)
+        return 0
+
+    if args.dry_run:
+        for i in doomed[:25]:
+            print(f"   [{i.source_id}] {i.title[:78]}", file=sys.stderr)
+        if len(doomed) > 25:
+            print(f"   ... 其余 {len(doomed) - 25} 条省略", file=sys.stderr)
+        print(f"→ dry-run: 将删除 {len(doomed)}/{len(items)} 条，不写文件", file=sys.stderr)
+        return 0
+
+    with run_lock(config.data_dir, wait=120):
+        kept, removed = store.prune(keep)
+    print(f"✓ 清理完成：保留 {kept} 条，删除 {removed} 条非 Agent 内容", file=sys.stderr)
+    return 0
+
+
 def cmd_usage(args) -> int:
     """Show accumulated LLM token usage.
 
@@ -420,7 +463,7 @@ def _writable(path: Path) -> bool:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="ain",
-        description="个人 AI 前沿信息 agent：抓取、打分、摘要、归档。",
+        description="Agent 前沿信息 agent：抓取、筛选、打分、摘要、归档。",
     )
     parser.add_argument("--root", help="项目根目录（默认自动定位）")
     parser.add_argument("-v", "--verbose", action="store_true", help="输出调试日志")
@@ -481,9 +524,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_usage.add_argument("--rate", type=float, default=7.1, help="美元兑人民币汇率")
     p_usage.set_defaults(func=cmd_usage)
 
+    p_prune = sub.add_parser(
+        "prune",
+        help="清理归档里不属于 Agent 范围的旧条目（换词表/门槛后用一次）",
+    )
+    p_prune.add_argument("--dry-run", action="store_true", help="只列出会被删除的条目")
+    p_prune.set_defaults(func=cmd_prune)
+
     p_doc = sub.add_parser("doctor", help="环境自检")
     p_doc.set_defaults(func=cmd_doctor)
-
     return parser
 
 

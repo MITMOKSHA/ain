@@ -18,129 +18,168 @@ from urllib.parse import parse_qs, urlparse
 
 from .config import Config
 from .models import Item
+from .scorer import Scorer
 from .store import Store, search_items
 
 WEB_DIR = Path(__file__).resolve().parent / "web"
 
 # Keywords too generic to make useful topics - every item matches them, so they
-# would produce one giant meaningless bucket.
+# would produce one giant meaningless bucket. Kept broad on purpose: with the
+# domain gate on, everything here is already an Agent story, so a "大语言模型"
+# thread would swallow the whole report instead of partitioning it.
 _GENERIC_KEYWORDS = {
     "model", "models", "research", "paper", "training", "release", "open source",
     "artificial intelligence", "machine learning", "deep learning", "neural network",
     "technology", "data", "dataset", "ai", "startup", "funding", "product",
     "模型", "算法", "论文", "研究", "发布", "技术", "应用", "产品",
+    # Vendor names say who shipped it, not what it is about - useless as threads
+    # now that Agent is the only domain.
+    "openai", "anthropic", "claude", "gemini", "deepmind", "gpt", "deepseek",
+    "qwen", "llama", "mistral", "gemma", "grok",
+    "llm", "large language model", "foundation model", "大语言模型", "大模型",
+    "agent", "agents", "agentic", "智能体",
 }
 
 # Canonical topic names, so synonyms collapse into one thread instead of
-# fragmenting the page into near-duplicate topics.
+# fragmenting the page into near-duplicate topics. Every entry is an Agent
+# engineering sub-domain, which is what the report now contains.
 _TOPIC_ALIASES = {
-    "llm": "大语言模型 (LLM)",
-    "large language model": "大语言模型 (LLM)",
-    "foundation model": "大语言模型 (LLM)",
-    "大语言模型": "大语言模型 (LLM)",
-    "大模型": "大语言模型 (LLM)",
-    "gpt": "大语言模型 (LLM)",
-    "chatgpt": "大语言模型 (LLM)",
-    "claude": "大语言模型 (LLM)",
-    "gemini": "大语言模型 (LLM)",
-    "llama": "大语言模型 (LLM)",
-    "qwen": "大语言模型 (LLM)",
-    "deepseek": "大语言模型 (LLM)",
+    # --- 工具调用与协议 ---
+    "tool use": "工具调用与 MCP",
+    "tool-use": "工具调用与 MCP",
+    "tool calling": "工具调用与 MCP",
+    "tool-calling": "工具调用与 MCP",
+    "function calling": "工具调用与 MCP",
+    "function-calling": "工具调用与 MCP",
+    "toolformer": "工具调用与 MCP",
+    "mcp": "工具调用与 MCP",
+    "model context protocol": "工具调用与 MCP",
+    "mcp server": "工具调用与 MCP",
+    "mcp client": "工具调用与 MCP",
+    "a2a": "Agent 互操作协议",
+    "agent2agent": "Agent 互操作协议",
+    "agent protocol": "Agent 互操作协议",
+    "工具调用": "工具调用与 MCP",
+    "函数调用": "工具调用与 MCP",
 
-    "agent": "Agent 与工具调用",
-    "agentic": "Agent 与工具调用",
-    "multi-agent": "Agent 与工具调用",
-    "tool use": "Agent 与工具调用",
-    "function calling": "Agent 与工具调用",
-    "mcp": "Agent 与工具调用",
-    "model context protocol": "Agent 与工具调用",
-    "智能体": "Agent 与工具调用",
+    # --- 上下文工程与记忆 ---
+    "context engineering": "上下文工程",
+    "context management": "上下文工程",
+    "上下文工程": "上下文工程",
+    "上下文管理": "上下文工程",
+    "agent memory": "记忆与状态",
+    "long-term memory": "记忆与状态",
+    "memory bank": "记忆与状态",
+    "长期记忆": "记忆与状态",
+    "prompt caching": "上下文工程",
 
-    "rag": "RAG 与检索",
-    "retrieval-augmented": "RAG 与检索",
-    "embedding": "RAG 与检索",
-    "reranker": "RAG 与检索",
-    "vector database": "RAG 与检索",
-    "检索增强": "RAG 与检索",
+    # --- 规划与推理 ---
+    "planning": "规划与任务分解",
+    "task decomposition": "规划与任务分解",
+    "self-reflection": "规划与任务分解",
+    "self-critique": "规划与任务分解",
+    "任务分解": "规划与任务分解",
 
-    "inference": "推理与部署",
-    "serving": "推理与部署",
-    "vllm": "推理与部署",
-    "sglang": "推理与部署",
-    "quantization": "推理与部署",
-    "quantized": "推理与部署",
-    "kv cache": "推理与部署",
-    "latency": "推理与部署",
-    "throughput": "推理与部署",
-    "speculative decoding": "推理与部署",
-    "部署": "推理与部署",
-    "量化": "推理与部署",
-    "推理": "推理与部署",
-    "推理加速": "推理与部署",
+    # --- 编排与框架 ---
+    "orchestration": "Agent 编排与框架",
+    "orchestrator": "Agent 编排与框架",
+    "agent orchestration": "Agent 编排与框架",
+    "agent workflow": "Agent 编排与框架",
+    "workflow orchestration": "Agent 编排与框架",
+    "agent framework": "Agent 编排与框架",
+    "agent sdk": "Agent 编排与框架",
+    "agents sdk": "Agent 编排与框架",
+    "langgraph": "Agent 编排与框架",
+    "langchain": "Agent 编排与框架",
+    "llamaindex": "Agent 编排与框架",
+    "crewai": "Agent 编排与框架",
+    "autogen": "Agent 编排与框架",
+    "semantic kernel": "Agent 编排与框架",
+    "pydantic ai": "Agent 编排与框架",
+    "智能体框架": "Agent 编排与框架",
+    "工作流编排": "Agent 编排与框架",
 
-    "fine-tuning": "微调与训练",
-    "finetuning": "微调与训练",
-    "lora": "微调与训练",
-    "qlora": "微调与训练",
-    "rlhf": "微调与训练",
-    "dpo": "微调与训练",
-    "pretraining": "微调与训练",
-    "distillation": "微调与训练",
-    "微调": "微调与训练",
-    "蒸馏": "微调与训练",
-    "预训练": "微调与训练",
-
-    "reasoning model": "推理模型与思维链",
-    "chain-of-thought": "推理模型与思维链",
-    "test-time compute": "推理模型与思维链",
-
-    "multimodal": "多模态",
-    "vision-language": "多模态",
-    "vlm": "多模态",
-    "diffusion": "生成模型",
-    "text-to-image": "生成模型",
-    "world model": "世界模型 (JEPA)",
-    "jepa": "世界模型 (JEPA)",
-    "v-jepa": "世界模型 (JEPA)",
-    "i-jepa": "世界模型 (JEPA)",
-    "world action model": "世界模型 (JEPA)",
-    "latent world model": "世界模型 (JEPA)",
-    "世界模型": "世界模型 (JEPA)",
-
-    "evals": "评测与基准",
-    "evaluation": "评测与基准",
-    "benchmark": "评测与基准",
-    "评测": "评测与基准",
-    "基准": "评测与基准",
-
-    "safety": "安全与对齐",
-    "alignment": "安全与对齐",
-    "interpretability": "安全与对齐",
-    "guardrails": "安全与对齐",
-    "hallucination": "安全与对齐",
-    "对齐": "安全与对齐",
-    "幻觉": "安全与对齐",
-
-    "code generation": "编码 Agent",
+    # --- 编码 Agent ---
     "coding agent": "编码 Agent",
-    "copilot": "编码 Agent",
+    "code agent": "编码 Agent",
+    "claude code": "编码 Agent",
     "codex": "编码 Agent",
     "cursor": "编码 Agent",
-    "computer use": "编码 Agent",
+    "windsurf": "编码 Agent",
+    "devin": "编码 Agent",
+    "openhands": "编码 Agent",
+    "aider": "编码 Agent",
+    "copilot": "编码 Agent",
+    "swe-bench": "编码 Agent",
+    "swebench": "编码 Agent",
+    "terminal-bench": "编码 Agent",
+    "代码智能体": "编码 Agent",
+    "编程智能体": "编码 Agent",
 
-    "gpu": "算力与硬件",
-    "cuda": "算力与硬件",
-    "tpu": "算力与硬件",
-    "nvidia": "算力与硬件",
-    "算力": "算力与硬件",
-    "芯片": "算力与硬件",
+    # --- 计算机操作 / 浏览器 Agent ---
+    "computer use": "计算机操作 Agent",
+    "computer-use": "计算机操作 Agent",
+    "browser agent": "计算机操作 Agent",
+    "browser-use": "计算机操作 Agent",
+    "web agent": "计算机操作 Agent",
+    "gui agent": "计算机操作 Agent",
+    "desktop agent": "计算机操作 Agent",
+    "浏览器智能体": "计算机操作 Agent",
 
-    "moe": "模型架构",
-    "transformer": "模型架构",
-    "mixture of experts": "模型架构",
-    "attention": "模型架构",
-    "context window": "模型架构",
-    "tokenizer": "模型架构",
+    # --- 多智能体 ---
+    "multi-agent": "多智能体协作",
+    "multiagent": "多智能体协作",
+    "multi-agent system": "多智能体协作",
+    "multi-agent systems": "多智能体协作",
+    "subagent": "多智能体协作",
+    "sub-agent": "多智能体协作",
+    "handoff": "多智能体协作",
+    "多智能体": "多智能体协作",
+
+    # --- 执行环境、权限与安全 ---
+    "sandbox": "沙箱与执行环境",
+    "sandboxing": "沙箱与执行环境",
+    "code execution": "沙箱与执行环境",
+    "execution environment": "沙箱与执行环境",
+    "permission": "沙箱与执行环境",
+    "沙箱": "沙箱与执行环境",
+    "权限管理": "沙箱与执行环境",
+    "prompt injection": "Agent 安全",
+    "tool poisoning": "Agent 安全",
+    "agent security": "Agent 安全",
+    "agent safety": "Agent 安全",
+    "guardrails": "Agent 安全",
+    "human-in-the-loop": "Agent 安全",
+    "human in the loop": "Agent 安全",
+    "提示注入": "Agent 安全",
+
+    # --- 评测 ---
+    "agent evaluation": "Agent 评测",
+    "agent evals": "Agent 评测",
+    "agent benchmark": "Agent 评测",
+    "agentic benchmark": "Agent 评测",
+    "gaia": "Agent 评测",
+    "webarena": "Agent 评测",
+    "osworld": "Agent 评测",
+    "os-world": "Agent 评测",
+    "tau-bench": "Agent 评测",
+    "taubench": "Agent 评测",
+    "agent trajectory": "Agent 评测",
+    "evals": "Agent 评测",
+    "evaluation": "Agent 评测",
+    "benchmark": "Agent 评测",
+    "评测": "Agent 评测",
+    "基准": "Agent 评测",
+
+    # --- 技能与运行时 ---
+    "agent skills": "Agent 技能与运行时",
+    "skills": "Agent 技能与运行时",
+    "harness": "Agent 技能与运行时",
+    "agent harness": "Agent 技能与运行时",
+    "scaffolding": "Agent 技能与运行时",
+    "agent scaffold": "Agent 技能与运行时",
+    "agent runtime": "Agent 技能与运行时",
+    "agent loop": "Agent 技能与运行时",
 }
 
 
@@ -150,6 +189,70 @@ def canonical_topic(keyword: str) -> str | None:
     if not kw or kw in _GENERIC_KEYWORDS:
         return None
     return _TOPIC_ALIASES.get(kw)
+
+
+# Catch-all topic names that carry no information once Agent is the only domain.
+# The prompt forbids them, but a topic page that renders one giant "AI Agent"
+# bucket is exactly the failure this guard exists to prevent.
+_CATCH_ALL_TOPICS = {
+    "ai agent", "ai agents", "agent", "agents", "agentic", "agentic ai",
+    "ai", "llm", "large language model", "foundation model", "model",
+    "大模型", "大语言模型", "语言模型", "智能体", "人工智能", "agent 技术",
+    "agent 与工具调用", "通用", "其他", "综合",
+}
+
+
+def is_usable_topic(name: str) -> bool:
+    """False for empty or catch-all LLM topic names."""
+    n = (name or "").strip().lower()
+    return bool(n) and n not in _CATCH_ALL_TOPICS
+
+
+# LLM-coined topics drift: the same idea comes back as "Agent 评测" one day and
+# "评测基准" the next, which splits one knowledge thread into two. These are
+# folded onto the canonical names above. Only exact names are mapped, so an
+# unrecognised new topic still passes through untouched.
+#
+# Keys are matched against a lowercased name, so any key containing Latin
+# letters must be written lowercase or it will silently never match.
+_CANONICAL_BY_SYNONYM = {
+    "企业安全与权限": "Agent 安全",
+    "安全与权限": "Agent 安全",
+    "权限与安全": "Agent 安全",
+    "评测基准": "Agent 评测",
+    "评测与方法": "Agent 评测",
+    "评估与基准": "Agent 评测",
+    "多智能体学习": "多智能体协作",
+    "多智能体系统": "多智能体协作",
+    "多模型编排": "Agent 编排与框架",
+    "任务型 agent": "Agent 编排与框架",
+    "任务型智能体": "Agent 编排与框架",
+    "agent 平台架构": "Agent 编排与框架",
+    "智能体平台": "Agent 编排与框架",
+    "闭环执行": "Agent 技能与运行时",
+    "上下文与记忆": "上下文工程",
+    "记忆与上下文": "上下文工程",
+    "工具与协议": "工具调用与 MCP",
+    "mcp 与工具": "工具调用与 MCP",
+    "代码智能体": "编码 Agent",
+    "编程智能体": "编码 Agent",
+    "计算机操作": "计算机操作 Agent",
+    "浏览器自动化": "计算机操作 Agent",
+    "agent 评测": "Agent 评测",
+    "agent 安全": "Agent 安全",
+    "agent 编排": "Agent 编排与框架",
+    "agent 技能": "Agent 技能与运行时",
+    "多智能体": "多智能体协作",
+    "编码 agent": "编码 Agent",
+}
+
+
+def normalize_topic(name: str) -> str:
+    """Fold a known LLM topic synonym onto its canonical name."""
+    n = (name or "").strip()
+    if not n:
+        return ""
+    return _CANONICAL_BY_SYNONYM.get(n.lower(), n)
 
 
 def _item_payload(item: Item) -> dict:
@@ -258,6 +361,15 @@ class Api:
         self.config = config
         self.store = Store(config.data_dir)
         self.fetcher = FetchRunner(config)
+        # Same hard gate the pipeline uses, so the archive view cannot disagree
+        # with the digest about what counts as an Agent story.
+        self.scorer = Scorer(config.interests)
+        self.domain_exempt = {
+            s.id for s in config.sources if s.opt("domain_exempt", False)
+        }
+
+    def _in_domain(self, item: Item) -> bool:
+        return item.source_id in self.domain_exempt or self.scorer.in_domain(item)
 
     def reload(self) -> None:
         self.store._items = None  # force re-read so new fetches show up
@@ -265,6 +377,9 @@ class Api:
     def items(self, params: dict[str, list[str]]) -> dict:
         self.reload()
         all_items = list(self.store.load().values())
+        # Rows predating the Agent gate (or written by an older config) are
+        # hidden here rather than shown and silently confusing the reader.
+        all_items = [i for i in all_items if self._in_domain(i)]
 
         def first(key: str, default: str = "") -> str:
             values = params.get(key) or []
@@ -364,7 +479,10 @@ class Api:
         the source of truth.
         """
         self.reload()
-        items = {i.id: i for i in self.store.load().values()}
+        # Filtered for the same reason as items(): a pre-gate run recorded
+        # selected_ids that are no longer in scope, and the digest should not
+        # resurrect them.
+        items = {i.id: i for i in self.store.load().values() if self._in_domain(i)}
 
         def first(key: str, default: str = "") -> str:
             values = params.get(key) or []
@@ -428,7 +546,7 @@ class Api:
         LLM stage is enabled.
         """
         self.reload()
-        items = list(self.store.load().values())
+        items = [i for i in self.store.load().values() if self._in_domain(i)]
 
         def first(key: str, default: str = "") -> str:
             values = params.get(key) or []
@@ -451,7 +569,13 @@ class Api:
         for item in items:
             names: list[str] = []
             if item.topics:
-                names = [t.strip() for t in item.topics if t.strip()]
+                names = []
+                for t in item.topics:
+                    if not is_usable_topic(t):
+                        continue
+                    n = normalize_topic(t)
+                    if n and n not in names:
+                        names.append(n)
                 used_llm = True
             else:
                 for kw in item.matched_keywords:
@@ -485,7 +609,9 @@ class Api:
 
     def stats(self) -> dict:
         self.reload()
-        items = list(self.store.load().values())
+        # Counted over in-domain rows only, so the headline archive size matches
+        # what the list view can actually show.
+        items = [i for i in self.store.load().values() if self._in_domain(i)]
         now = datetime.now(timezone.utc)
 
         def count_since(days: float) -> int:

@@ -43,6 +43,8 @@ class RunResult:
     # LLM token usage for this run (empty when the LLM stage is off).
     llm_usage: dict = field(default_factory=dict)
     llm_skipped: int = 0
+    # Items dropped by the domain gate (about AI, but not about agents).
+    filtered_out_of_domain: int = 0
 
     @property
     def ok_sources(self) -> list[str]:
@@ -161,18 +163,38 @@ def run(
     scorer = Scorer(config.interests)
     scorer.score_all(merged)
 
-    # Relevance gate. Needed for firehoses (HN, arXiv) where an unrelated post
-    # could ride source/engagement bonuses into the report. Curated first-party
-    # blogs (OpenAI/Anthropic/DeepMind) publish rarely and are relevant by
-    # definition, so they opt out via `keep_all = true` - otherwise a major
-    # model launch whose title matches no keyword gets silently dropped.
+    # ---- gates --------------------------------------------------------
+    # Two independent gates used to run here as one condition. They answer
+    # different questions and are now separate, because conflating them is what
+    # let non-Agent stories through:
+    #
+    #   1. domain gate  - is this about agents at all? (hard; skippable only by
+    #      `domain_exempt` sources)
+    #   2. relevance gate - does it clear the keyword threshold? Needed for
+    #      firehoses (HN, arXiv) where an unrelated post could otherwise ride
+    #      source/engagement bonuses into the report. Curated first-party blogs
+    #      opt out via `keep_all`, since a low score there reflects an old
+    #      publish date rather than irrelevance.
     keep_all = {s.id for s in config.sources if s.opt("keep_all", False)}
+    # Sources that are Agent-only end to end (a pure Agent engineering blog) can
+    # opt out of the domain gate. Deliberately a separate flag from `keep_all`:
+    # `keep_all` says "curated, so skip the keyword threshold", which is not the
+    # same claim as "everything this source publishes is in scope".
+    domain_exempt = {s.id for s in config.sources if s.opt("domain_exempt", False)}
 
     def passes(item: Item) -> bool:
+        if item.source_id in domain_exempt:
+            return True
+        # Domain first: a non-Agent story must not be rescued by keep_all.
+        if not scorer.in_domain(item):
+            return False
         return item.source_id in keep_all or scorer.relevance_only(item) > 0
 
     relevant = [i for i in merged if passes(i)]
     result.all_scored = relevant
+    result.filtered_out_of_domain = sum(
+        1 for i in merged if i.source_id not in domain_exempt and not scorer.in_domain(i)
+    )
 
     selected = scorer.select(
         relevant,
@@ -219,7 +241,12 @@ def run(
         # slow source does not block another process from recording its results.
         with run_lock(config.data_dir, wait=float(os.environ.get("AIN_LOCK_WAIT", "120"))):
             store = Store(config.data_dir)
-            result.added, result.updated = store.merge(merged)
+            # Persist only what passed the domain gate. The archive is what the
+            # search box, the knowledge threads and future runs read, so writing
+            # out-of-domain stories here would quietly rebuild the very full-AI
+            # noise this agent is configured to exclude - even though the digest
+            # would look clean.
+            result.added, result.updated = store.merge(relevant)
             store.record_run(
                 {
                     "ok_sources": result.ok_sources,
@@ -228,6 +255,10 @@ def run(
                     "added": result.added,
                     "updated": result.updated,
                     "selected": len(selected),
+                    # How many AI stories the domain gate rejected. Recorded so
+                    # "the report got thin" can be distinguished from "sources
+                    # broke" at a glance.
+                    "out_of_domain": result.filtered_out_of_domain,
                     # The curated set, in report order. Recorded explicitly
                     # because scores decay with time, so "which items were
                     # curated that day" cannot be recomputed after the fact.

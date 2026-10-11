@@ -174,6 +174,21 @@ class Store:
             "\n".join(item.to_json() for item in ordered) + ("\n" if ordered else ""),
         )
 
+    def prune(self, keep) -> tuple[int, int]:
+        """Drop items for which `keep(item)` is false. Returns (kept, removed).
+
+        Needed because the archive accumulates rows written before the domain
+        gate existed (or under a different config). Hiding them in the UI alone
+        would leave stale rows feeding the search box and the topic threads.
+        """
+        items = self.load()
+        removed = [item_id for item_id, item in items.items() if not keep(item)]
+        for item_id in removed:
+            del items[item_id]
+        if removed:
+            self.save()
+        return len(items), len(removed)
+
     # ----------------------------------------------------------------- runs
     def record_run(self, record: dict) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)

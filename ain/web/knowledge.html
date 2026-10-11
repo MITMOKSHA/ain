@@ -121,7 +121,7 @@ async function load(){
   // Without an LLM key there are no concept cards, so explain how to turn them on.
   $("banner").innerHTML = d.mode === "llm" ? "" : `
     <div class="banner">
-      <b>当前用关键词归并主题。</b>每个专题下是该主题的相关内容，能看清一个方向上的脉络。<br>
+      <b>当前用关键词归并主题。</b>每个专题下是该 Agent 子领域的相关内容，能看清一个方向上的脉络。<br>
       配置 LLM 后可升级为 <b>AI 归纳的概念卡片</b>（这个技术是什么、工程上怎么用、适合什么水平），
       并让跨天主题自动收敛：
       <code>export AIN_LLM_API_KEY=...</code> 然后 <code>python3 -m ain fetch --llm</code>

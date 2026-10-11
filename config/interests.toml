@@ -1,10 +1,15 @@
 # =============================================================================
-# 兴趣画像：决定什么内容排到日报前面
+# 兴趣画像：把「Agent 领域」的内容排到前面，并把非 Agent 内容挡在门外
 # -----------------------------------------------------------------------------
-# strong   命中即大幅加分（你的核心关注点）
-# medium   命中加中等分（相关但不够精准）
-# negative 命中扣分（噪声，比如招聘、广告、播客预告）
+# 这个仓库关注的不是整个 AI，而是 **Agent（智能体）** 这条线：
+# 工具调用、上下文工程、记忆、编排框架、编码 Agent、计算机操作、沙箱与权限、
+# Agent 评测、多智能体协作。
+#
+# strong   命中即大幅加分（Agent 核心概念）
+# medium   命中加中等分（相关但不够精准，例如底层模型、API）
+# negative 命中扣分（招聘、广告、播客预告等噪声）
 # cn_strong / cn_medium  中文关键词，单独一组，见下方说明
+# [domain] 硬门槛：不命中这里面任何一个词的内容，无论来自哪个信源都不收录
 #
 # 英文关键词为整词匹配、大小写不敏感；中文关键词为子串匹配（中文无空格分词）。
 # 改完直接重跑 `python -m ain fetch`，不需要动代码。
@@ -12,75 +17,79 @@
 
 [keywords]
 strong = [
-  # --- 厂商与模型实体名（最关键：漏掉这些会直接丢掉重大发布） ---
-  "openai", "anthropic", "claude", "gemini", "deepmind", "google brain",
-  "meta ai", "llama", "mistral", "deepseek", "qwen", "kimi", "glm",
-  "grok", "phi", "gemma", "command r", "stable diffusion", "sora",
-  "gpt", "chatgpt", "copilot", "midjourney", "perplexity", "cohere",
-  "hugging face", "nvidia", "groq", "together ai", "fireworks ai",
-  "cursor", "windsurf", "codex", "alphafold", "waymo", "tesla fsd",
+  # --- Agent 主体与形态 ---
+  "agent", "agents", "agentic", "multi-agent", "multiagent", "subagent",
+  "sub-agent", "ai agent", "autonomous agent", "agentic ai", "agent loop",
+  "agent framework", "agent sdk", "agents sdk", "agent runtime", "agent harness",
+  "agent scaffold", "scaffolding", "harness", "autonomy",
 
-  # --- LLM 基础与训练 ---
-  "llm", "large language model", "foundation model", "transformer",
-  "pretraining", "post-training", "fine-tuning", "finetuning", "lora", "qlora",
-  "rlhf", "dpo", "distillation", "quantization", "quantized", "mixture of experts",
-  "moe", "scaling law", "context window", "long context", "tokenizer",
-  "reinforcement learning", "rlvr", "reward model", "synthetic data",
-  "distributed training", "checkpoint", "gradient",
+  # --- 工具调用与协议 ---
+  "tool use", "tool-use", "tool calling", "tool-calling", "toolformer",
+  "function calling", "function-calling", "tool integration",
+  "mcp", "model context protocol", "mcp server", "mcp client",
+  "a2a", "agent2agent", "agent protocol", "agent skills", "skills",
 
-  # --- 推理与工程落地（工程背景重点） ---
-  "inference", "serving", "vllm", "sglang", "tensorrt", "onnx", "llama.cpp",
-  "kv cache", "paged attention", "flash attention", "speculative decoding",
-  "throughput", "latency", "batching", "cuda", "triton", "gpu", "tpu",
-  "memory bandwidth", "migration", "deployment", "cost per token",
+  # --- 编码 Agent / 计算机操作 ---
+  "coding agent", "code agent", "claude code", "codex", "cursor", "windsurf",
+  "devin", "openhands", "aider", "copilot",
+  "computer use", "computer-use", "browser agent", "browser-use", "web agent",
+  "gui agent", "desktop agent", "swe-bench", "swebench", "terminal-bench",
+  "agent trajectory",
 
-  # --- 应用架构 ---
-  "rag", "retrieval-augmented", "vector database", "embedding", "reranker",
-  "agent", "agentic", "multi-agent", "tool use", "function calling", "mcp",
-  "model context protocol", "workflow orchestration", "guardrails",
-  "prompt engineering", "structured output", "evals", "evaluation",
-  "benchmark", "observability", "tracing",
+  # --- 编排与框架 ---
+  "orchestration", "orchestrator", "agent orchestration", "agent workflow",
+  "workflow orchestration", "handoff", "langgraph", "langchain", "llamaindex",
+  "crewai", "autogen", "semantic kernel", "pydantic ai",
 
-  # --- 模型能力 ---
-  "reasoning model", "chain-of-thought", "test-time compute", "multimodal",
-  "vision-language", "vlm", "diffusion", "world model", "text-to-image",
-  "speech recognition", "code generation", "open weights", "open-source model",
-  "coding agent", "computer use",
+  # --- 上下文、记忆、规划 ---
+  "context engineering", "context management", "agent memory",
+  "long-term memory", "memory bank", "planning", "task decomposition",
+  "self-reflection", "self-critique", "human-in-the-loop", "human in the loop",
 
-  # --- 世界模型 / 自监督表征（JEPA 系） ---
-  # 这类工作大量发在 cs.CV，标题常不含 "llm" 等通用词，不单列会整类漏掉
-  "jepa", "joint embedding predictive", "joint-embedding predictive",
-  "v-jepa", "i-jepa", "world action model", "latent world model",
-  "predictive architecture", "self-supervised representation",
-  "energy-based model", "representation learning",
-  "video world model", "model-based rl", "dynamics model",
+  # --- 执行环境与安全 ---
+  "sandbox", "sandboxing", "code execution", "execution environment",
+  "prompt injection", "tool poisoning", "agent security", "agent safety",
+  "guardrails", "permission", "prompt caching",
+
+  # --- Agent 评测 ---
+  "agent evaluation", "agent evals", "agent benchmark", "agentic benchmark",
+  "gaia", "webarena", "osworld", "os-world", "tau-bench", "taubench",
+
+  # --- Agent 的推理底座（值得学，但单独出现时不构成 Agent 内容） ---
+  "reasoning model", "chain-of-thought", "test-time compute",
 ]
 
 # -----------------------------------------------------------------------------
 # 中文关键词。必须单独配：英文关键词匹配不到中文标题，
 # 否则中文源的内容会被相关性门槛整体过滤掉。
 # 中文没有空格分词，这里按子串匹配（不是整词匹配），所以别放太短的词。
+# 注意：刻意不收「代理」（在中文里更常指 proxy）和「协议」这类歧义词。
 # -----------------------------------------------------------------------------
 cn_strong = [
-  "大模型", "大语言模型", "语言模型", "多模态", "具身智能", "世界模型",
-  "智能体", "推理", "微调", "蒸馏", "量化", "部署", "预训练",
-  "神经网络", "深度学习", "机器学习", "人工智能", "生成式", "对齐",
-  "评测", "基准", "算力", "显存", "推理加速", "开源模型",
-  "检索增强", "向量数据库", "提示词", "上下文", "幻觉", "扩散模型",
-  "自动驾驶", "机器人", "芯片", "国产", "端侧", "强化学习",
+  "智能体", "多智能体", "自主智能体", "代码智能体", "编程智能体", "浏览器智能体",
+  "工具调用", "函数调用", "工具使用", "上下文工程", "上下文管理",
+  "智能体框架", "工作流编排", "任务分解", "规划", "反思",
+  "沙箱", "记忆", "长期记忆", "提示注入", "权限管理", "编排",
 ]
 
 cn_medium = [
-  "模型", "算法", "数据集", "论文", "研究", "发布", "技术", "架构",
-  "性能", "效率", "优化", "应用", "产品", "融资", "创业",
+  "大模型", "大语言模型", "语言模型", "多模态", "推理", "微调", "蒸馏",
+  "量化", "部署", "评测", "基准", "开源模型", "检索增强", "向量数据库",
+  "提示词", "上下文", "幻觉", "模型", "算法", "数据集", "论文", "研究",
+  "发布", "技术", "架构", "性能", "效率", "优化", "应用", "产品",
 ]
 
 medium = [
-  "artificial intelligence", "machine learning", "deep learning", "neural network",
-  "model", "dataset", "training", "open source", "release", "research", "paper",
-  "safety", "alignment", "interpretability", "hallucination", "robustness",
-  "privacy", "regulation", "policy", "api", "sdk", "framework", "toolkit",
-  "robotics", "autonomous", "productivity", "copilot", "startup", "funding",
+  "llm", "large language model", "foundation model", "model", "api", "sdk",
+  "framework", "toolkit", "open source", "open weights", "release", "research",
+  "paper", "benchmark", "evaluation", "evals", "dataset", "training",
+  "fine-tuning", "finetuning", "lora", "rag", "retrieval-augmented", "embedding",
+  "vector database", "reranker", "inference", "serving", "latency", "throughput",
+  "multimodal", "vision-language", "structured output", "observability",
+  "tracing", "workflow", "automation", "safety", "alignment", "interpretability",
+  "hallucination", "robustness", "privacy", "regulation", "policy", "startup",
+  "funding", "productivity", "openai", "anthropic", "claude", "gemini",
+  "deepmind", "gpt", "deepseek", "qwen", "llama", "mistral", "gemma", "grok",
 ]
 
 negative = [
@@ -88,6 +97,45 @@ negative = [
   "we are hiring", "we're hiring", "job opening", "join our team", "giveaway",
   "black friday", "discount", "crypto", "nft", "airdrop", "stock price",
   "price prediction", "elon musk tweet", "drama",
+]
+
+# =============================================================================
+# Agent 硬门槛
+# -----------------------------------------------------------------------------
+# require = true 时，只有命中下面任一关键词的内容才会进入归档精选。
+# 这一关对**所有信源**生效（包括 keep_all 的官方博客），
+# 所以「某个源整体相关」不再等于「它发的每条都算 Agent 内容」。
+#
+# domain_exempt = true 的信源可以豁免这一关（见 config/sources.toml），
+# 只留给整站都在讲 Agent 工程的信源。
+#
+# 这里的词会自动并入上面的 strong 词表参与打分，不需要重复维护。
+# =============================================================================
+[domain]
+require = true
+keywords = [
+  # 英文：只收无歧义的 Agent 术语。「agent」本身也在内，
+  # 但 arXiv 那类用 query 在信源侧就收窄了，不会被 RL 里的 agent 污染。
+  "agent", "agents", "agentic", "multi-agent", "multiagent", "subagent",
+  "sub-agent", "tool use", "tool-use", "tool calling", "function calling",
+  "function-calling", "toolformer", "mcp", "model context protocol",
+  "mcp server", "mcp client", "a2a", "agent2agent", "agent protocol",
+  "agent skills", "coding agent", "code agent", "claude code", "codex",
+  "computer use", "computer-use", "browser agent", "browser-use", "gui agent",
+  "agent trajectory", "agent orchestration", "workflow orchestration",
+  "context engineering", "agent memory", "long-term memory", "memory bank",
+  "task decomposition", "self-reflection", "human-in-the-loop",
+  "sandboxing", "prompt injection", "tool poisoning", "agent security",
+  "agent safety", "agent evaluation", "agent evals", "agent benchmark",
+  "gaia", "webarena", "osworld", "tau-bench", "swe-bench", "terminal-bench",
+  "langgraph", "langchain", "llamaindex", "crewai", "autogen",
+  "semantic kernel", "pydantic ai", "harness", "agent harness",
+  "multi-agent system", "multi-agent systems",
+
+  # 中文：同样只收无歧义的说法
+  "智能体", "多智能体", "自主智能体", "代码智能体", "编程智能体", "浏览器智能体",
+  "工具调用", "函数调用", "上下文工程", "上下文管理", "智能体框架",
+  "工作流编排", "任务分解", "沙箱", "长期记忆", "提示注入", "权限管理",
 ]
 
 # =============================================================================

@@ -59,6 +59,46 @@ DEFAULT_CN_MEDIUM = [
     "性能", "效率", "优化", "应用", "产品", "融资", "创业",
 ]
 
+# Domain gate: the topic this agent actually tracks. With `require = true` an
+# item must match one of these to be kept at all - unlike the keyword weights
+# above, which merely reorder whatever came in. Kept deliberately narrow and
+# unambiguous: "agent" in an RL paper is a different sense of the word, which is
+# why the arXiv sources also narrow at the query level.
+DEFAULT_DOMAIN = [
+    "agent", "agents", "agentic", "multi-agent", "multiagent", "subagent",
+    "sub-agent", "tool use", "tool-use", "tool calling", "function calling",
+    "function-calling", "toolformer", "mcp", "model context protocol",
+    "mcp server", "mcp client", "a2a", "agent2agent", "agent protocol",
+    "agent skills", "coding agent", "code agent", "claude code", "codex",
+    "computer use", "computer-use", "browser agent", "browser-use", "gui agent",
+    "agent trajectory", "agent orchestration", "workflow orchestration",
+    "context engineering", "agent memory", "long-term memory", "memory bank",
+    "task decomposition", "self-reflection", "human-in-the-loop",
+    "sandboxing", "prompt injection", "tool poisoning", "agent security",
+    "agent safety", "agent evaluation", "agent evals", "agent benchmark",
+    "gaia", "webarena", "osworld", "tau-bench", "swe-bench", "terminal-bench",
+    "langgraph", "langchain", "llamaindex", "crewai", "autogen",
+    "semantic kernel", "pydantic ai", "harness", "agent harness",
+    "multi-agent system", "multi-agent systems",
+    "智能体", "多智能体", "自主智能体", "代码智能体", "编程智能体", "浏览器智能体",
+    "工具调用", "函数调用", "上下文工程", "上下文管理", "智能体框架",
+    "工作流编排", "任务分解", "沙箱", "长期记忆", "提示注入", "权限管理",
+]
+
+
+@dataclass
+class DomainGate:
+    """Hard topical gate: keep only items that match at least one domain term.
+
+    Distinct from keyword weighting on purpose. Weights decide ordering and can
+    be dominated by source weight or engagement; this decides inclusion, and it
+    applies to every source including `keep_all` curated blogs - otherwise a
+    first-party blog whose output is mostly non-Agent would flood the report.
+    """
+
+    enabled: bool = False
+    keywords: list[str] = field(default_factory=lambda: list(DEFAULT_DOMAIN))
+
 
 @dataclass
 class SourceConfig:
@@ -104,6 +144,7 @@ class Interests:
     scoring: ScoringConfig = field(default_factory=ScoringConfig)
     # Extra per-category boosts, e.g. {"paper": 1.5, "release": 2.0}
     category_boost: dict[str, float] = field(default_factory=dict)
+    domain: DomainGate = field(default_factory=DomainGate)
 
 
 @dataclass
@@ -200,14 +241,31 @@ def load_interests(path: Path) -> Interests:
             return list(fallback)
         return [str(v).strip() for v in values if str(v).strip()]
 
+    # Domain gate. Its terms are folded into the strong list so a domain match
+    # always carries strong-keyword weight when ranking - declaring five domain
+    # terms in two places that could drift apart would be a config trap.
+    domain_raw = raw.get("domain", {}) or {}
+    domain_terms = [str(v).strip() for v in (domain_raw.get("keywords") or []) if str(v).strip()]
+    domain_enabled = bool(domain_raw.get("require", bool(domain_terms)))
+
+    strong = kw("strong", DEFAULT_STRONG)
+    for term in domain_terms:
+        low = term.lower()
+        if low and low not in strong:
+            strong.append(low)
+
     return Interests(
-        strong=kw("strong", DEFAULT_STRONG),
+        strong=strong,
         medium=kw("medium", DEFAULT_MEDIUM),
         negative=kw("negative", DEFAULT_NEGATIVE),
         cn_strong=cn_kw("cn_strong", DEFAULT_CN_STRONG),
         cn_medium=cn_kw("cn_medium", DEFAULT_CN_MEDIUM),
         scoring=scoring,
         category_boost={str(k): float(v) for k, v in boost.items()},
+        domain=DomainGate(
+            enabled=domain_enabled,
+            keywords=domain_terms or list(DEFAULT_DOMAIN),
+        ),
     )
 
 

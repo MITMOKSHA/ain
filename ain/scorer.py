@@ -51,7 +51,29 @@ class Scorer:
         self._negative = _compile(interests.negative)
         self._cn_strong = _compile(interests.cn_strong)
         self._cn_medium = _compile(interests.cn_medium)
+        self._domain = _compile(interests.domain.keywords)
         self.cfg = interests.scoring
+
+    def in_domain(self, item: Item) -> bool:
+        """Hard topical gate: is this item about the tracked domain at all?
+
+        Checked against the **title**, not title+summary. That is deliberate and
+        was measured: a media recap whose summary happens to mention "Codex" (a
+        model roundup) is not an Agent story, while a real Agent story almost
+        always says so in its title. Widening this to the summary let through
+        roughly a third of the curated-source noise in testing.
+
+        Sources that already narrow at the query level (arXiv, whose query
+        matches on the abstract) opt out via `domain_exempt` instead, so they are
+        not double-filtered on a field the query already covered.
+
+        Unlike a score threshold this cannot be outvoted by source weight or
+        engagement points, which is the whole reason it exists.
+        """
+        if not self.interests.domain.enabled:
+            return True
+        text = f"{item.title} {' '.join(item.tags)}".lower()
+        return any(pattern.search(text) for _, pattern in self._domain)
 
     def _match_all(
         self, text: str, title_text: str
