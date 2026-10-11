@@ -310,9 +310,6 @@ limit = 60
 **两个信源因中国大陆网络不可达而保持禁用**：`hf-models`（huggingface.co）和
 `reddit-localllama`（reddit.com）。需要代理才能启用。
 
-好消息是 GitHub Actions 的 runner 连得上它们。如果想收这两个源，把 `enabled` 改成 `true` 即可，
-参见下面的「定时运行」。
-
 可用的 `type`：`rss`（别名 `feed`、`atom`）、`arxiv`、`hackernews`（别名 `hn`）、
 `html_list`（没有 feed 的站点）、`hf_models`、`hf_blog`、`reddit`。
 
@@ -418,10 +415,12 @@ sh scripts/install-launchd.sh --uninstall
 
 `daily.sh` 会从脚本自身位置推导项目根目录，所以移动目录或换个地方 clone 都不用改。
 
-**GitHub Actions** —— 已附带 `.github/workflows/daily.yml`。如果所在网络访问不了
-`huggingface.co` 或 `reddit.com`，这个方式特别有用：GitHub 的 runner 能连上。
-把 `AIN_LLM_API_KEY` 加为仓库 secret（可选，不设则纯规则、零成本），
-并把想要的信源改成 `enabled = true`。
+> **GitHub Actions 已移除。** 这个仓库原先附带 `.github/workflows/daily.yml`，
+> 在 GitHub 的 runner 上跑抓取，并用 `git add -f data/` 把归档**强制**提交回仓库。
+> 两个原因让它不再合适：它一直在跑旧的宽泛 AI 信源列表；而强制添加 `data/`
+> 会覆盖本地 `.gitignore`，把越界归档推进仓库。如果你需要能连上
+> `huggingface.co` / `reddit.com` 的定时运行，请自己重新加一个 workflow——
+> 并且不要提交归档，或只提交通过领域门槛的部分。
 
 ## 添加信源
 
@@ -472,9 +471,7 @@ config/
 scripts/
   daily.sh            定时任务入口
   install-launchd.sh  按当前目录生成 launchd 任务
-.github/workflows/
-  daily.yml           GitHub Actions 定时任务
-data/items.jsonl      含正文与概念卡片的归档（只写通过领域门槛的条目）
+data/items.jsonl      含正文与概念卡片的归档（只写通过领域门槛的条目，不进版本库）
 data/runs.jsonl       每次运行的记录，含 selected_ids 与 out_of_domain（精选的事实来源）
 data/usage.jsonl      LLM token 账本（自动生成）
 ```

@@ -392,10 +392,13 @@ sh scripts/install-launchd.sh --uninstall
 
 `daily.sh` derives the project root from its own location, so it survives moving or cloning elsewhere.
 
-**GitHub Actions** — included as `.github/workflows/daily.yml`. Useful if `huggingface.co` or
-`reddit.com` are unreachable from your network: GitHub's runners can reach them, so set
-`enabled = true` on `hf-models` / `reddit-localllama` if you want them back. Add `AIN_LLM_API_KEY`
-as a repository secret (optional — without it, runs are rule-based and free).
+> **GitHub Actions was removed.** This repo previously shipped `.github/workflows/daily.yml`,
+> which ran a fetch on GitHub's runners and force-committed the archive back with
+> `git add -f data/`. Two problems made that a bad fit: it kept running the old
+> broad-AI source list, and force-adding `data/` overrode the local `.gitignore`,
+> so out-of-domain archives were pushed into the repo. If you want scheduled runs
+> that can reach `huggingface.co` / `reddit.com`, re-add a workflow yourself — and
+> commit no archive, or commit only what passes the domain gate.
 
 ## Adding a source
 
@@ -446,9 +449,7 @@ config/
 scripts/
   daily.sh            scheduled-run entry point
   install-launchd.sh  generate a launchd agent for this checkout
-.github/workflows/
-  daily.yml           GitHub Actions schedule
-data/items.jsonl      archive with bodies and concept cards (generated)
+data/items.jsonl      archive with bodies and concept cards (generated, untracked)
 data/runs.jsonl       per-run record incl. selected_ids and out_of_domain
 data/usage.jsonl      LLM token ledger (generated)
 ```
